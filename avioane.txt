@@ -1,0 +1,5 @@
+OceanicFlight815 Frank_Lapidus libera
+PegasFlight10 David_Teica in_aterizare
+AtlantaFlight25 Buzatu_Rares asteapta_decolare
+EuropeanFlight527 Pena_Andrei in_aterizare
+OceanicFlight114 Popovici_Miron in_zbor
