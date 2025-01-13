@@ -2,7 +2,13 @@
 #include <vector>
 #include <string>
 #include <fstream>
-#include "header.h"
+#include <thread>
+#include <chrono>
+#include "avion.h"
+#include "pista.h"
+#include "aeroport.h"
+#include "turncontrol.h"
+#include "pilot.h"
 
 void afisareMeniu() {
     std::cout << "Meniu Simulator Aeroport:\n";
@@ -11,29 +17,69 @@ void afisareMeniu() {
     std::cout << "3. Vizualizare Turn de Control\n";
     std::cout << "4. Vizualizare Piste\n";
     std::cout << "5. Vizualizare Piloti\n";
-    std::cout << "6. Iesire\n";
+    std::cout << "6. Pornire Simulare Automata\n";
+    std::cout << "7. Iesire\n";
 }
 
 void incarcaDate(std::vector<Avion>& avioane, std::vector<Pilot>& piloti, std::vector<Pista>& piste) {
-    std::ifstream fisier("planes.txt");
+    std::ifstream fisier("avioane.txt");
     if (!fisier) {
-        std::cerr << "Nu se poate deschide fisierul planes.txt\n";
+        std::cerr << "Nu se poate deschide fisierul avioane.txt\n";
         return;
     }
 
     std::string id, pilot, stare;
-    while (fisier >> std::ws && std::getline(fisier, id, ' ') && std::getline(fisier, pilot, ' ') && std::getline(fisier, stare)) {
+    while (fisier >> id >> pilot >> stare) {
         Avion avion{ id, pilot, stare };
         avioane.push_back(avion);
 
         Pilot p{ pilot, avion };
         piloti.push_back(p);
 
-        Pista pista{ true, avion }; // Presupunem ca toate pistele sunt initial disponibile
+        Pista pista{ avion };
         piste.push_back(pista);
     }
 
     fisier.close();
+}
+
+
+void actualizeazaStari(std::vector<Avion>& avioane, std::vector<Pista>& piste) {
+    for (size_t i = 0; i < avioane.size(); ++i) {
+        Avion& avion = avioane[i];
+        Pista& pista = piste[i];
+
+        if (avion.stare == "libera") {
+            avion.stare = "in_aterizare";
+            pista.disponibila = false;
+        }
+        else if (avion.stare == "in_aterizare") {
+            avion.stare = "asteapta_decolare";
+            pista.disponibila = false;
+        }
+        else if (avion.stare == "asteapta_decolare") {
+            avion.stare = "in_zbor";
+            pista.disponibila = true;
+        }
+        else if (avion.stare == "in_zbor") {
+            avion.stare = "libera";
+            pista.disponibila = true;
+        }
+    }
+}
+
+void simulareAutomata(std::vector<Avion>& avioane, std::vector<Pista>& piste) {
+    while (true) {
+        actualizeazaStari(avioane, piste);
+
+        std::cout << "\n--- Status Aeroport Actualizat ---\n";
+        for (size_t i = 0; i < avioane.size(); ++i) {
+            std::cout << "Avion: " << avioane[i].id << " | Stare: " << avioane[i].stare
+                << " | Pista: " << (piste[i].disponibila ? "Disponibila" : "Indisponibila") << "\n";
+        }
+
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+    }
 }
 
 int main() {
@@ -47,6 +93,7 @@ int main() {
     // Incarca date din fisier
     incarcaDate(avioane, piloti, piste);
     aeroport.avioane = avioane;
+    aeroport.piste = piste;
 
     do {
         afisareMeniu();
@@ -55,9 +102,7 @@ int main() {
 
         switch (alegere) {
         case 1:
-            for (const auto& avion : avioane) {
-                std::cout << "ID Avion: " << avion.id << ", Stare: " << avion.stare << "\n";
-            }
+            aeroport.vizualizareAvioane();
             break;
         case 2:
             aeroport.vizualizareAeroport();
@@ -66,21 +111,30 @@ int main() {
             turnDeControl.vizualizareTurnDeControl();
             break;
         case 4:
-            for (auto& pista : piste) {
-                pista.vizualizarePista();
-            }
+            aeroport.vizualizarePiste();
             break;
         case 5:
             for (const auto& pilot : piloti) {
-                std::cout << "Nume Pilot: " << pilot.nume << "\n";
+                pilot.vizualizarePilot();
             }
             break;
         case 6:
+            simulareAutomata(avioane, piste);
+            break;
+        case 7:
             std::cout << "Iesire...\n";
             break;
         default:
             std::cout << "Alegere invalida. Va rugam sa incercati din nou.\n";
         }
-    } while (alegere != 6);
+
+        if (alegere != 7 && alegere != 6) {
+            std::cout << "Apasati Enter pentru a continua...";
+            std::cin.ignore();
+            std::cin.get();
+            system("CLS");
+        }
+    } while (alegere != 7);
+
     return 0;
 }
